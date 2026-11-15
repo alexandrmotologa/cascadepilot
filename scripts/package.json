@@ -1,0 +1,10 @@
+{
+  "name": "cascadepilot-media-scripts",
+  "private": true,
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "gifenc": "^1.0.3",
+    "pngjs": "^7.0.0",
+    "puppeteer": "^24.2.1"
+  }
+}

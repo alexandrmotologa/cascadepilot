@@ -91,7 +91,7 @@ export const ROICalculator: React.FC = () => {
             <label className="text-xs font-medium text-slate-300 block mb-2">
               Current Baseline Frontier Model
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {(Object.keys(pricingTable) as Array<keyof typeof pricingTable>).map((key) => (
                 <button
                   key={key}

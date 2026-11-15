@@ -18,6 +18,7 @@ go.work.sum
 web/node_modules/
 web/dist/
 web/.vite/
+scripts/node_modules/
 node_modules/
 
 # Local databases and runtime data

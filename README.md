@@ -1,24 +1,44 @@
-# cascadepilot
+<p align="center">
+  <img src="docs/images/logo.png" alt="cascadepilot Logo" width="130" style="border-radius: 24px;" />
+</p>
 
-Adaptive speculative LLM cascading reverse proxy and FinOps gateway in Go with embedded React 19 cockpit.
+<h1 align="center">cascadepilot</h1>
+
+<p align="center">
+  <strong>Adaptive speculative LLM cascading reverse proxy and FinOps gateway in Go with embedded React 19 cockpit.</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/go-1.24-00ADD8?style=flat-square&logo=go" alt="Go Version" />
+  <img src="https://img.shields.io/badge/react-19-61DAFB?style=flat-square&logo=react" alt="React 19" />
+  <img src="https://img.shields.io/badge/routing%20overhead-0.086%20ms-brightgreen?style=flat-square" alt="Overhead" />
+  <img src="https://img.shields.io/badge/memory%20rss-17.4%20MB-emerald?style=flat-square" alt="Memory RSS" />
+  <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License" />
+</p>
+
+---
 
 cascadepilot routes incoming prompt traffic dynamically between Tier 0 Prompt Cache ($0.00), low-cost small language models (Gemini Flash, Llama 3.1 8B at $0.075 to $0.15 per 1M tokens), mid-tier reasoning models (GPT-4o-mini at $0.15 to $0.60 per 1M tokens), and expensive frontier models (Claude 3.5 Sonnet, GPT-4o, o1 at $3.00 to $15.00 per 1M tokens).
 
 Routine queries are resolved by Tier 1 at 95% lower cost. If in-flight verification detects uncertainty, schema violation, or hedging, the proxy escalates the query to Tier 2 (Mid-tier) or Tier 3 (Frontier) without breaking client compatibility.
 
+## Demo
+
+![cascadepilot Live Demonstration](docs/images/cascadepilot_demo.gif)
+
 ## Key capabilities
 
-- Tier 0 Exact and Normalized Prompt Cache: Returns identical or normalized prompt completions in under 1 millisecond at zero cost ($0.00).
-- Speculative 3-Tier Cascade: Dynamically orchestrates traffic across Tier 1 (SLM), Tier 2 (Mid-tier reasoning), and Tier 3 (Frontier flagship).
-- Inbound Complexity Scorer: Evaluates token length, syntactic constraints, and reasoning markers in under 0.1 milliseconds.
-- In-Flight Verification Gate: Evaluates token log-probabilities, refusal patterns, and JSON schema compliance before socket delivery.
-- Multi-Tenant Cost Allocation and Department Chargeback: Generates virtual gateway API keys (`cp-live-...`) and tracks spending and savings by department (Engineering, Customer Support, Marketing, Data Science).
-- Enterprise Budget Caps and Circuit Breaker: Enforces daily and monthly dollar caps with automatic fallback to Tier 1 to prevent runaway cloud charges.
-- Side-by-Side Model Benchmark: Compares Tier 1, Mid-tier, Frontier, and Cascadepilot in parallel with token and cost diffs.
-- Executive FinOps ROI Calculator: Interactively models enterprise annual dollar savings and quality parity retention.
-- Drop-In API Compatibility: Matches OpenAI `/v1/chat/completions` and Anthropic `/v1/messages` endpoints.
-- Embedded React 19 Cockpit: Single binary with embedded web dashboard on port `:8088` featuring live SSE streaming, waterfall distributions, and live threshold tuning.
-- Minimal Footprint: Operates within 18MB RAM and adds under 0.1ms of proxy routing overhead.
+- **Tier 0 Exact and Normalized Prompt Cache:** Returns identical or normalized prompt completions in under 1 millisecond at zero cost ($0.00).
+- **Speculative 3-Tier Cascade:** Dynamically orchestrates traffic across Tier 1 (SLM), Tier 2 (Mid-tier reasoning), and Tier 3 (Frontier flagship).
+- **Inbound Complexity Scorer:** Evaluates token length, syntactic constraints, and reasoning markers in 65 microseconds.
+- **In-Flight Verification Gate:** Evaluates token log-probabilities, refusal patterns, and JSON schema compliance before socket delivery.
+- **Multi-Tenant Cost Allocation and Department Chargeback:** Generates virtual gateway API keys (`cp-live-...`) and tracks spending and savings by department (Engineering, Customer Support, Marketing, Data Science).
+- **Enterprise Budget Caps and Circuit Breaker:** Enforces daily and monthly dollar caps with automatic fallback to Tier 1 to prevent runaway cloud charges.
+- **Side-by-Side Model Benchmark:** Compares Tier 1, Mid-tier, Frontier, and Cascadepilot in parallel with token and cost diffs.
+- **Executive FinOps ROI Calculator:** Interactively models enterprise annual dollar savings and quality parity retention.
+- **Drop-In API Compatibility:** Matches OpenAI `/v1/chat/completions` and Anthropic `/v1/messages` endpoints.
+- **Embedded React 19 Cockpit:** Single binary with embedded web dashboard on port `:8088` featuring live SSE streaming, waterfall distributions, and live threshold tuning.
+- **Minimal Footprint:** Operates within 18 MB RAM and adds under 0.1 ms of proxy routing overhead.
 
 ## Architecture
 
@@ -65,6 +85,27 @@ Client Application / Agent (OpenAI or Anthropic SDK)
                            v
               Client Delivery + Async FinOps Ledger
 ```
+
+## FinOps Cockpit & Interface Gallery
+
+The embedded web studio operates directly from the compiled single binary on port `:8088`.
+
+### Executive Overview & Live Telemetry
+![cascadepilot FinOps Cockpit](docs/images/cascadepilot_dashboard.png)
+
+### Side-by-Side Model Benchmark
+![cascadepilot Parallel Benchmark](docs/images/cascadepilot_comparison.png)
+
+### Multi-Tenant Department Chargeback & Virtual Keys
+![cascadepilot Department Chargeback](docs/images/cascadepilot_tenants.png)
+
+### Executive Annual ROI Calculator
+![cascadepilot ROI Calculator](docs/images/cascadepilot_roi_calculator.png)
+
+### Responsive Mobile Interface
+<p align="center">
+  <img src="docs/images/cascadepilot_mobile.png" alt="cascadepilot Mobile Interface" width="360" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);" />
+</p>
 
 ## Quick start
 

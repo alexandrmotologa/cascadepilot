@@ -1,0 +1,232 @@
+const fs = require('fs');
+const path = require('path');
+const { Resvg } = require('@resvg/resvg-js');
+
+function buildLogoSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="squircle-clip">
+      <rect x="24" y="24" width="976" height="976" rx="220" />
+    </clipPath>
+
+    <!-- Electric Cyan Glow Gradient -->
+    <linearGradient id="cyan-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f5ff"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+
+    <!-- Amber Beak Accent Gradient -->
+    <linearGradient id="amber-beak" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+
+    <!-- Obsidian & Titanium Metallic Gradients -->
+    <linearGradient id="obsidian-dark" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0a0f1d"/>
+    </linearGradient>
+
+    <linearGradient id="titanium-facet" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+
+    <linearGradient id="keel-core" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00f5ff" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#0284c7" stop-opacity="0.2"/>
+    </linearGradient>
+
+    <!-- Drop Shadow Filter for Depth -->
+    <filter id="falcon-shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#020617" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- 1. Luxury White Squircle Container -->
+  <rect x="24" y="24" width="976" height="976" rx="220" fill="#ffffff" stroke="#e2e8f0" stroke-width="6" />
+
+  <g clip-path="url(#squircle-clip)">
+    <g transform="translate(512, 512)" filter="url(#falcon-shadow)">
+
+      <!-- 2. Hexagonal Architectural Gateway Frame -->
+      <polygon points="
+        0,-400
+        346,-200
+        346,200
+        0,400
+        -346,200
+        -346,-200
+      " fill="none" stroke="#0f172a" stroke-width="42" stroke-linejoin="round" />
+
+      <!-- Inner Dashed Telemetry Ring -->
+      <polygon points="
+        0,-360
+        312,-180
+        312,180
+        0,360
+        -312,180
+        -312,-180
+      " fill="none" stroke="#00f5ff" stroke-width="5" opacity="0.45" stroke-dasharray="18, 14" stroke-linejoin="round" />
+
+      <!-- Radar Orientation Vector Crosshairs -->
+      <line x1="0" y1="-380" x2="0" y2="-340" stroke="#00f5ff" stroke-width="4" opacity="0.6"/>
+      <line x1="0" y1="340" x2="0" y2="380" stroke="#00f5ff" stroke-width="4" opacity="0.6"/>
+      <line x1="-330" y1="0" x2="-290" y2="0" stroke="#00f5ff" stroke-width="4" opacity="0.6"/>
+      <line x1="290" y1="0" x2="330" y2="0" stroke="#00f5ff" stroke-width="4" opacity="0.6"/>
+
+      <!-- 3. WATERTIGHT SOLID SILHOUETTE BASE (Eliminates background light leaks) -->
+      <path d="
+        M 0,-290
+        L 55,-250 L 95,-210 L 130,-150 L 120,-80 L 190,-70 L 290,30 L 210,85 L 270,180 L 180,215 L 220,320 L 115,295 L 65,200 L 45,350 L 0,380
+        L -45,350 L -65,200 L -115,295 L -220,320 L -180,215 L -270,180 L -210,85 L -290,30 L -190,-70 L -120,-80 L -130,-150 L -95,-210 L -55,-250
+        Z
+      " fill="#090d16" />
+
+      <!-- 4. STEPPED CASCADE WINGS (Aerodynamic 3-Tier Facets) -->
+      <!-- Left Wing - Tier 1 Outer Blade -->
+      <polygon points="-120,-80 -190,-70 -290,30 -210,85 -140,10" fill="#334155" />
+      <polygon points="-140,10 -210,85 -165,70 -115,0" fill="#1e293b" />
+
+      <!-- Right Wing - Tier 1 Outer Blade -->
+      <polygon points="120,-80 190,-70 290,30 210,85 140,10" fill="#475569" />
+      <polygon points="140,10 210,85 165,70 115,0" fill="#334155" />
+
+      <!-- Left Wing - Tier 2 Mid-Cascade Blade -->
+      <polygon points="-140,10 -210,85 -270,180 -180,215 -125,120" fill="#1e293b" />
+      <polygon points="-125,120 -180,215 -145,195 -95,110" fill="#0f172a" />
+
+      <!-- Right Wing - Tier 2 Mid-Cascade Blade -->
+      <polygon points="140,10 210,85 270,180 180,215 125,120" fill="#334155" />
+      <polygon points="125,120 180,215 145,195 95,110" fill="#1e293b" />
+
+      <!-- Left Wing - Tier 3 Primary Blade / Flight Tips -->
+      <polygon points="-125,120 -180,215 -220,320 -115,295 -75,190" fill="#0f172a" />
+      <polygon points="-75,190 -115,295 -65,200" fill="#0b0f19" />
+
+      <!-- Right Wing - Tier 3 Primary Blade / Flight Tips -->
+      <polygon points="125,120 180,215 220,320 115,295 75,190" fill="#1e293b" />
+      <polygon points="75,190 115,295 65,200" fill="#0f172a" />
+
+      <!-- Wing Cascade Leading Edge Vector Insets (Cyan Precision Accents) -->
+      <polyline points="-190,-70 -290,30 -210,85" fill="none" stroke="#00f5ff" stroke-width="3" opacity="0.75" />
+      <polyline points="190,-70 290,30 210,85" fill="none" stroke="#00f5ff" stroke-width="3" opacity="0.75" />
+      <polyline points="-210,85 -270,180 -180,215" fill="none" stroke="#00f5ff" stroke-width="3" opacity="0.75" />
+      <polyline points="210,85 270,180 180,215" fill="none" stroke="#00f5ff" stroke-width="3" opacity="0.75" />
+
+      <!-- 5. FALCON HEAD, CREST & TEMPLE FACETS -->
+      <!-- Crown Top -->
+      <polygon points="0,-290 -55,-250 0,-230" fill="#334155" />
+      <polygon points="0,-290 55,-250 0,-230" fill="#475569" />
+
+      <!-- Brow & Forehead Armor -->
+      <polygon points="0,-230 -55,-250 -75,-190 -25,-175 0,-195" fill="#1e293b" />
+      <polygon points="0,-230 55,-250 75,-190 25,-175 0,-195" fill="#334155" />
+
+      <!-- Occipital Crest & Ear Coverts -->
+      <polygon points="-55,-250 -95,-210 -75,-190" fill="#0f172a" />
+      <polygon points="55,-250 95,-210 75,-190" fill="#1e293b" />
+
+      <polygon points="-95,-210 -130,-150 -75,-155" fill="#0b0f19" />
+      <polygon points="95,-210 130,-150 75,-155" fill="#0f172a" />
+
+      <!-- Integrated Malar Stripes (Falcon Mustache / Low-Poly Facets, NOT strokes) -->
+      <polygon points="-75,-155 -120,-80 -65,-75 -45,-120" fill="#0b0f19" />
+      <polygon points="75,-155 120,-80 65,-75 45,-120" fill="#1e293b" />
+      <polygon points="-65,-75 -85,-20 -40,-35" fill="#070a12" />
+      <polygon points="65,-75 85,-20 40,-35" fill="#0f172a" />
+
+      <!-- Cheek / Auricular Patch -->
+      <polygon points="-75,-190 -75,-155 -45,-120 -25,-175" fill="#1e293b" />
+      <polygon points="75,-190 75,-155 45,-120 25,-175" fill="#334155" />
+
+      <!-- 6. PREDATOR ALMOND CYAN OPTICS (Sharp Polygon Sockets with Slit Pupil) -->
+      <!-- Left Eye Socket -->
+      <polygon points="-68,-160 -36,-170 -26,-152 -58,-144" fill="#000000" />
+      <polygon points="-65,-158 -38,-167 -29,-153 -56,-146" fill="url(#cyan-glow)" />
+      <!-- Pupil Slit -->
+      <polygon points="-48,-164 -44,-163 -47,-150 -51,-151" fill="#000000" />
+      <circle cx="-42" cy="-160" r="2.5" fill="#ffffff" />
+
+      <!-- Right Eye Socket -->
+      <polygon points="68,-160 36,-170 26,-152 58,-144" fill="#000000" />
+      <polygon points="65,-158 38,-167 29,-153 56,-146" fill="url(#cyan-glow)" />
+      <!-- Pupil Slit -->
+      <polygon points="48,-164 44,-163 47,-150 51,-151" fill="#000000" />
+      <circle cx="42" cy="-160" r="2.5" fill="#ffffff" />
+
+      <!-- Eye Brow Brow Ridge Highlight -->
+      <polygon points="-68,-160 -36,-170 -25,-175 -75,-190" fill="#00f5ff" opacity="0.3" />
+      <polygon points="68,-160 36,-170 25,-175 75,-190" fill="#00f5ff" opacity="0.3" />
+
+      <!-- 7. HOOKED RAPTOR BEAK & CERE (Amber Contrast Accent) -->
+      <!-- Cere (Base of beak) -->
+      <polygon points="-25,-175 25,-175 0,-155" fill="#f59e0b" />
+      <circle cx="-10" cy="-170" r="2" fill="#78350f" />
+      <circle cx="10" cy="-170" r="2" fill="#78350f" />
+
+      <!-- Hooked Beak Facets -->
+      <polygon points="-25,-175 0,-155 0,-70 -22,-115" fill="#d97706" />
+      <polygon points="25,-175 0,-155 0,-70 22,-115" fill="url(#amber-beak)" />
+      <!-- Sharp cutting edge down to predatory hook -->
+      <polygon points="0,-155 0,-60 -5,-75" fill="#b45309" />
+      <polygon points="0,-155 0,-60 5,-75" fill="#ea580c" />
+
+      <!-- 8. STERNUM KEEL & VENTRAL AERODYNAMIC ARMOR -->
+      <!-- Upper Throat / Chin (Titanium Slate, NOT paper-white) -->
+      <polygon points="0,-60 -22,-115 -40,-35 0,-40" fill="#94a3b8" />
+      <polygon points="0,-60 22,-115 40,-35 0,-40" fill="#cbd5e1" />
+
+      <!-- Central Pectoral Keel Spine -->
+      <polygon points="0,-40 -55,40 0,90" fill="#1e293b" />
+      <polygon points="0,-40 55,40 0,90" fill="#334155" />
+
+      <polygon points="0,90 -65,160 0,220" fill="#0f172a" />
+      <polygon points="0,90 65,160 0,220" fill="#1e293b" />
+
+      <!-- Keel Core Telemetry Inset (Glowing Cyan Energy Conduit) -->
+      <polygon points="0,-20 -15,40 0,75 15,40" fill="url(#keel-core)" />
+      <polygon points="0,105 -12,155 0,195 12,155" fill="url(#keel-core)" />
+
+      <!-- Pectoral Flanks -->
+      <polygon points="-40,-35 -55,40 -115,0" fill="#0f172a" />
+      <polygon points="40,-35 55,40 115,0" fill="#1e293b" />
+
+      <polygon points="-55,40 -65,160 -95,110" fill="#0b0f19" />
+      <polygon points="55,40 65,160 95,110" fill="#0f172a" />
+
+      <polygon points="-65,160 0,220 -35,270 -75,190" fill="#0b0f19" />
+      <polygon points="65,160 0,220 35,270 75,190" fill="#0f172a" />
+
+      <!-- 9. TAIL RUDDER (Aerodynamic Rudder Keel) -->
+      <polygon points="0,220 -35,270 -45,350 0,380" fill="#0a0f1d" />
+      <polygon points="0,220 35,270 45,350 0,380" fill="#141d2e" />
+      <line x1="0" y1="220" x2="0" y2="380" stroke="#00f5ff" stroke-width="2.5" opacity="0.7"/>
+
+    </g>
+  </g>
+</svg>`;
+}
+
+function run() {
+  const outputDir = path.resolve(__dirname, '../docs/images');
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  const svg = buildLogoSvg();
+  const svgPath = path.join(outputDir, 'logo.svg');
+  const pngPath = path.join(outputDir, 'logo.png');
+
+  fs.writeFileSync(svgPath, svg, 'utf8');
+
+  const resvg = new Resvg(svg, {
+    fitTo: { mode: 'width', value: 1024 },
+  });
+  const pngData = resvg.render().asPng();
+  fs.writeFileSync(pngPath, pngData);
+
+  console.log('✓ Successfully rendered logo.svg and logo.png (1024x1024) to docs/images/');
+}
+
+run();

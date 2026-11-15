@@ -19,7 +19,7 @@ export const SavingsHero: React.FC<SavingsHeroProps> = ({ summary }) => {
   const monthlySpend = summary?.monthly_spend_usd ?? 0;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
       {/* Card 1: Cumulative Net Savings */}
       <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 relative overflow-hidden group hover:border-blue-500/50 transition-all duration-300">
         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl group-hover:bg-blue-500/10 transition-colors pointer-events-none" />

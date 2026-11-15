@@ -1,0 +1,36 @@
+server:
+  host: "0.0.0.0"
+  port: 8088
+  read_timeout_ms: 60000
+  write_timeout_ms: 60000
+
+thresholds:
+  theta_bypass: 0.75
+  tau_confidence: 0.70
+  stream_buffer_tokens: 16
+
+tiers:
+  tier1:
+    model: "gemini-1.5-flash"
+    provider: "mock"
+    endpoint: "https://generativelanguage.googleapis.com/v1beta/openai"
+    api_key_env: "GEMINI_API_KEY"
+    cost_per_million_input: 0.075
+    cost_per_million_output: 0.30
+    timeout_ms: 8000
+
+  tier2:
+    model: "claude-3-5-sonnet"
+    provider: "mock"
+    endpoint: "https://api.anthropic.com/v1"
+    api_key_env: "ANTHROPIC_API_KEY"
+    cost_per_million_input: 3.00
+    cost_per_million_output: 15.00
+    timeout_ms: 35000
+
+storage:
+  db_path: "data/cascadepilot.db"
+
+simulation:
+  mock_enabled: true
+  simulated_network_latency_ms: 12

@@ -1,12 +1,12 @@
 # Binaries
-bin/
-dist/
+/bin/
+/dist/
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
-cascadepilot
+/cascadepilot
 
 # Go artifacts
 *.test

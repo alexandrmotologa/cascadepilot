@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Send, Terminal, Sparkles, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
+import { Send, Terminal, Sparkles, CheckCircle, ArrowRight, GitCompare, Database, AlertCircle } from 'lucide-react';
+import { CompareModal } from './CompareModal';
+import { CompareResult } from '../types';
 
 interface ProxyPlaygroundProps {
   onQueryComplete?: () => void;
@@ -9,6 +11,8 @@ export const ProxyPlayground: React.FC<ProxyPlaygroundProps> = ({ onQueryComplet
   const [prompt, setPrompt] = useState('Extract the customer name and total order value from this text: "Customer: Jane Doe, Order #9021, Total: $450.00"');
   const [stream, setStream] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [comparing, setComparing] = useState(false);
+  const [compareResult, setCompareResult] = useState<CompareResult | null>(null);
   const [output, setOutput] = useState('');
   const [meta, setMeta] = useState<{
     tier?: string;
@@ -16,6 +20,7 @@ export const ProxyPlayground: React.FC<ProxyPlaygroundProps> = ({ onQueryComplet
     savedUSD?: string;
     confidence?: string;
     latencyMs?: number;
+    cacheHit?: boolean;
   } | null>(null);
 
   const presets = [
@@ -28,7 +33,7 @@ export const ProxyPlayground: React.FC<ProxyPlaygroundProps> = ({ onQueryComplet
       text: 'Format into valid JSON: Name: John Connor, Role: Resistance Leader, Location: Sector 4',
     },
     {
-      label: 'Distributed Proof (Tier 2 Escalated)',
+      label: 'Distributed Proof (Tier 3 Escalated)',
       text: 'Step by step, prove whether a two-phase commit protocol is vulnerable to coordinator crash during commit phase. Analyze edge cases and clock drift.',
     },
   ];
@@ -56,6 +61,7 @@ export const ProxyPlayground: React.FC<ProxyPlaygroundProps> = ({ onQueryComplet
       const escHeader = response.headers.get('X-Cascadepilot-Escalated');
       const savedHeader = response.headers.get('X-Cascadepilot-Saved-USD');
       const confHeader = response.headers.get('X-Cascadepilot-Confidence');
+      const cacheHeader = response.headers.get('X-Cascadepilot-Cache-Hit');
 
       if (!stream) {
         const data = await response.json();
@@ -68,6 +74,7 @@ export const ProxyPlayground: React.FC<ProxyPlaygroundProps> = ({ onQueryComplet
           savedUSD: savedHeader || '0.000450',
           confidence: confHeader || '0.95',
           latencyMs: duration,
+          cacheHit: cacheHeader === 'true',
         });
         if (onQueryComplete) onQueryComplete();
       } else {
@@ -101,11 +108,12 @@ export const ProxyPlayground: React.FC<ProxyPlaygroundProps> = ({ onQueryComplet
 
         const duration = Math.round(performance.now() - start);
         setMeta({
-          tier: tierHeader || (prompt.includes('prove') ? 'tier2_escalated' : 'tier1'),
+          tier: tierHeader || (prompt.includes('prove') ? 'tier3_escalated' : 'tier1'),
           escalated: prompt.includes('prove'),
           savedUSD: savedHeader || '0.000450',
           confidence: confHeader || '0.95',
           latencyMs: duration,
+          cacheHit: cacheHeader === 'true',
         });
         if (onQueryComplete) onQueryComplete();
       }
@@ -113,6 +121,29 @@ export const ProxyPlayground: React.FC<ProxyPlaygroundProps> = ({ onQueryComplet
       setOutput(`Error: ${err}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCompare = async () => {
+    if (!prompt.trim() || comparing) return;
+
+    setComparing(true);
+    try {
+      const res = await fetch('/api/compare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'cascadepilot-auto',
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+      const data = await res.json();
+      setCompareResult(data);
+      if (onQueryComplete) onQueryComplete();
+    } catch (err) {
+      console.error('Comparison error:', err);
+    } finally {
+      setComparing(false);
     }
   };
 
@@ -156,7 +187,7 @@ export const ProxyPlayground: React.FC<ProxyPlaygroundProps> = ({ onQueryComplet
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
             <input
               type="checkbox"
@@ -167,18 +198,30 @@ export const ProxyPlayground: React.FC<ProxyPlaygroundProps> = ({ onQueryComplet
             <span>Stream response (<code className="text-blue-400">stream: true</code>)</span>
           </label>
 
-          <button
-            onClick={handleSend}
-            disabled={loading || !prompt.trim()}
-            className="flex items-center gap-1.5 text-xs font-medium text-white px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 transition disabled:opacity-50"
-          >
-            {loading ? (
-              <Sparkles className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Send className="w-3.5 h-3.5" />
-            )}
-            {loading ? 'Evaluating & Routing...' : 'Send Request'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCompare}
+              disabled={comparing || !prompt.trim()}
+              className="flex items-center gap-1.5 text-xs font-medium text-slate-200 px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 transition disabled:opacity-50 border border-slate-700"
+              title="Run side-by-side parallel benchmark across Tier 1, Mid-tier, and Frontier"
+            >
+              <GitCompare className="w-3.5 h-3.5 text-purple-400" />
+              {comparing ? 'Comparing Tiers...' : 'Compare Side-by-Side'}
+            </button>
+
+            <button
+              onClick={handleSend}
+              disabled={loading || !prompt.trim()}
+              className="flex items-center gap-1.5 text-xs font-medium text-white px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 transition disabled:opacity-50"
+            >
+              {loading ? (
+                <Sparkles className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Send className="w-3.5 h-3.5" />
+              )}
+              {loading ? 'Evaluating & Routing...' : 'Send Request'}
+            </button>
+          </div>
         </div>
 
         {/* Results Area */}
@@ -187,9 +230,17 @@ export const ProxyPlayground: React.FC<ProxyPlaygroundProps> = ({ onQueryComplet
             {meta && (
               <div className="flex flex-wrap items-center gap-3 pb-3 mb-3 border-b border-slate-800 text-xs">
                 <span className="flex items-center gap-1 font-medium">
-                  {meta.tier === 'tier1' ? (
+                  {meta.cacheHit || meta.tier === 'tier0_cache' ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">
+                      <Database className="w-3 h-3" /> Tier 0 (Cache Hit)
+                    </span>
+                  ) : meta.tier === 'tier1' ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
                       <CheckCircle className="w-3 h-3" /> Tier 1 (SLM)
+                    </span>
+                  ) : meta.tier === 'tier2_mid' ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/20">
+                      <ArrowRight className="w-3 h-3" /> Tier 2 (Mid-tier)
                     </span>
                   ) : meta.escalated ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
@@ -220,6 +271,11 @@ export const ProxyPlayground: React.FC<ProxyPlaygroundProps> = ({ onQueryComplet
           </div>
         )}
       </div>
+
+      {/* Side-by-Side Comparison Modal */}
+      {compareResult && (
+        <CompareModal result={compareResult} onClose={() => setCompareResult(null)} />
+      )}
     </div>
   );
 };

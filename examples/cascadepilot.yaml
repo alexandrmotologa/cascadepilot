@@ -8,6 +8,7 @@ thresholds:
   theta_bypass: 0.75
   tau_confidence: 0.70
   stream_buffer_tokens: 16
+  auto_tune_enabled: true
 
 tiers:
   tier1:
@@ -20,6 +21,15 @@ tiers:
     timeout_ms: 8000
 
   tier2:
+    model: "gpt-4o-mini"
+    provider: "mock"
+    endpoint: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+    cost_per_million_input: 0.150
+    cost_per_million_output: 0.60
+    timeout_ms: 15000
+
+  tier3:
     model: "claude-3-5-sonnet"
     provider: "mock"
     endpoint: "https://api.anthropic.com/v1"
@@ -27,6 +37,16 @@ tiers:
     cost_per_million_input: 3.00
     cost_per_million_output: 15.00
     timeout_ms: 35000
+
+cache:
+  enabled: true
+  max_size: 5000
+  ttl_minutes: 1440
+
+budget:
+  daily_cap_usd: 100.0
+  monthly_cap_usd: 2500.0
+  circuit_breaker_action: "downgrade_to_tier1"
 
 storage:
   db_path: "data/cascadepilot.db"

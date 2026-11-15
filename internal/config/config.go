@@ -20,32 +20,52 @@ func DefaultConfig() *Config {
 			ThetaBypass:        0.75,
 			TauConfidence:      0.70,
 			StreamBufferTokens: 16,
+			AutoTuneEnabled:    true,
 		},
 		Tiers: TiersConfig{
 			Tier1: TierConfig{
-				Model:               "gemini-1.5-flash",
-				Provider:            "mock",
-				Endpoint:            "https://generativelanguage.googleapis.com/v1beta/openai",
-				APIKeyEnv:           "GEMINI_API_KEY",
-				CostPerMillionInput: 0.075,
+				Model:                "gemini-1.5-flash",
+				Provider:             "mock",
+				Endpoint:             "https://generativelanguage.googleapis.com/v1beta/openai",
+				APIKeyEnv:            "GEMINI_API_KEY",
+				CostPerMillionInput:  0.075,
 				CostPerMillionOutput: 0.30,
-				TimeoutMs:           8000,
+				TimeoutMs:            8000,
 			},
 			Tier2: TierConfig{
-				Model:               "claude-3-5-sonnet",
-				Provider:            "mock",
-				Endpoint:            "https://api.anthropic.com/v1",
-				APIKeyEnv:           "ANTHROPIC_API_KEY",
-				CostPerMillionInput: 3.00,
-				CostPerMillionOutput: 15.00,
-				TimeoutMs:           35000,
+				Model:                "gpt-4o-mini",
+				Provider:             "mock",
+				Endpoint:             "https://api.openai.com/v1",
+				APIKeyEnv:            "OPENAI_API_KEY",
+				CostPerMillionInput:  0.150,
+				CostPerMillionOutput: 0.60,
+				TimeoutMs:            15000,
 			},
+			Tier3: TierConfig{
+				Model:                "claude-3-5-sonnet",
+				Provider:             "mock",
+				Endpoint:             "https://api.anthropic.com/v1",
+				APIKeyEnv:            "ANTHROPIC_API_KEY",
+				CostPerMillionInput:  3.00,
+				CostPerMillionOutput: 15.00,
+				TimeoutMs:            35000,
+			},
+		},
+		Cache: CacheConfig{
+			Enabled:    true,
+			MaxSize:    5000,
+			TTLMinutes: 1440, // 24 hours
+		},
+		Budget: BudgetConfig{
+			DailyCapUSD:          100.0,
+			MonthlyCapUSD:        2500.0,
+			CircuitBreakerAction: "downgrade_to_tier1",
 		},
 		Storage: StorageConfig{
 			DBPath: "data/cascadepilot.db",
 		},
 		Simulation: SimulationConfig{
-			MockEnabled:                true,
+			MockEnabled:               true,
 			SimulatedNetworkLatencyMs: 12,
 		},
 	}
@@ -80,6 +100,20 @@ func LoadFromFile(filePath string) (*Config, error) {
 	}
 	if cfg.Thresholds.StreamBufferTokens <= 0 {
 		cfg.Thresholds.StreamBufferTokens = 16
+	}
+
+	// Fallback Tier3 if legacy config only had Tier2 as frontier
+	if cfg.Tiers.Tier3.Model == "" && cfg.Tiers.Tier2.Model != "" {
+		cfg.Tiers.Tier3 = cfg.Tiers.Tier2
+		cfg.Tiers.Tier2 = TierConfig{
+			Model:                "gpt-4o-mini",
+			Provider:             "mock",
+			Endpoint:             "https://api.openai.com/v1",
+			APIKeyEnv:            "OPENAI_API_KEY",
+			CostPerMillionInput:  0.150,
+			CostPerMillionOutput: 0.60,
+			TimeoutMs:            15000,
+		}
 	}
 
 	return cfg, nil

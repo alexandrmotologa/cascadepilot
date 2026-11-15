@@ -2,25 +2,35 @@
 
 Adaptive speculative LLM cascading reverse proxy and FinOps gateway in Go with embedded React 19 cockpit.
 
-cascadepilot routes incoming prompt traffic dynamically between low-cost small language models (Gemini Flash, Llama 3.1 8B, GPT-4o-mini at $0.075 to $0.15 per 1M tokens) and expensive frontier models (Claude 3.5 Sonnet, GPT-4o, o1 at $3.00 to $15.00 per 1M tokens). Routine queries are resolved by Tier 1 at 95% lower cost. If in-flight verification detects uncertainty, schema violation, or hedging, the proxy escalates the query to Tier 2 without breaking client compatibility.
+cascadepilot routes incoming prompt traffic dynamically between Tier 0 Prompt Cache ($0.00), low-cost small language models (Gemini Flash, Llama 3.1 8B at $0.075 to $0.15 per 1M tokens), mid-tier reasoning models (GPT-4o-mini at $0.15 to $0.60 per 1M tokens), and expensive frontier models (Claude 3.5 Sonnet, GPT-4o, o1 at $3.00 to $15.00 per 1M tokens).
+
+Routine queries are resolved by Tier 1 at 95% lower cost. If in-flight verification detects uncertainty, schema violation, or hedging, the proxy escalates the query to Tier 2 (Mid-tier) or Tier 3 (Frontier) without breaking client compatibility.
 
 ## Key capabilities
 
-- High-speed complexity analyzer: Evaluates token length, syntactic constraints, and reasoning markers in under 0.1 milliseconds.
-- Speculative verification gate: Analyzes average token log-probabilities, refusal patterns, and JSON schema adherence before delivering output to the client.
-- In-flight transparent escalation: Discards uncertain Tier 1 drafts and queries Tier 2 directly without client disruption.
-- Streaming speculative buffer: Buffers the first K tokens during streaming requests to verify confidence before flushing to the client socket.
-- Drop-in API compatibility: Matches OpenAI `/v1/chat/completions` and Anthropic `/v1/messages` endpoints.
-- Pure Go embedded SQLite ledger: Tracks prompt tokens, completion tokens, latency, and exact dollar savings using `modernc.org/sqlite` (zero CGO required).
-- Embedded React 19 FinOps studio: Single binary with embedded web dashboard accessible on `:8088` featuring live SSE streaming, routing waterfalls, latency histograms, and live threshold tuning.
-- Minimal footprint: Consumes under 20MB of memory and adds under 0.1ms of proxy routing overhead.
+- Tier 0 Exact and Normalized Prompt Cache: Returns identical or normalized prompt completions in under 1 millisecond at zero cost ($0.00).
+- Speculative 3-Tier Cascade: Dynamically orchestrates traffic across Tier 1 (SLM), Tier 2 (Mid-tier reasoning), and Tier 3 (Frontier flagship).
+- Inbound Complexity Scorer: Evaluates token length, syntactic constraints, and reasoning markers in under 0.1 milliseconds.
+- In-Flight Verification Gate: Evaluates token log-probabilities, refusal patterns, and JSON schema compliance before socket delivery.
+- Multi-Tenant Cost Allocation and Department Chargeback: Generates virtual gateway API keys (`cp-live-...`) and tracks spending and savings by department (Engineering, Customer Support, Marketing, Data Science).
+- Enterprise Budget Caps and Circuit Breaker: Enforces daily and monthly dollar caps with automatic fallback to Tier 1 to prevent runaway cloud charges.
+- Side-by-Side Model Benchmark: Compares Tier 1, Mid-tier, Frontier, and Cascadepilot in parallel with token and cost diffs.
+- Executive FinOps ROI Calculator: Interactively models enterprise annual dollar savings and quality parity retention.
+- Drop-In API Compatibility: Matches OpenAI `/v1/chat/completions` and Anthropic `/v1/messages` endpoints.
+- Embedded React 19 Cockpit: Single binary with embedded web dashboard on port `:8088` featuring live SSE streaming, waterfall distributions, and live threshold tuning.
+- Minimal Footprint: Operates within 18MB RAM and adds under 0.1ms of proxy routing overhead.
 
 ## Architecture
 
 ```
-Client Application (OpenAI SDK / LangChain / Agent)
+Client Application / Agent (OpenAI or Anthropic SDK)
                      |
-         POST /v1/chat/completions
+         POST /v1/chat/completions (with Bearer cp-live-...)
+                     v
+        +-------------------------+
+        |  Tier 0 Prompt Cache    | ---> Cache Hit? ---> Return ($0.00, < 1ms)
+        +-------------------------+
+                     | Miss
                      v
         +-------------------------+
         |  Complexity Scorer      |  (S_comp < 0.1ms)
@@ -29,8 +39,8 @@ Client Application (OpenAI SDK / LangChain / Agent)
    S_comp > theta_bypass     S_comp <= theta_bypass
          /                         \
         v                           v
-  Tier 2 Frontier             Tier 1 Speculative Engine
-  (Direct Bypass)             (Gemini Flash / GPT-4o-mini)
+  Tier 3 Frontier             Tier 1 Speculative Engine
+  (Direct Bypass)             (Gemini Flash / SLM)
         |                           |
         |                           v
         |                     Verification Gate
@@ -43,13 +53,17 @@ Client Application (OpenAI SDK / LangChain / Agent)
         |             Q_conf >= tau     Q_conf < tau
         |                  |                 |
         |                  v                 v
-        |             Accept Tier 1     Escalate to Tier 2
-        |             (Save 80-95%)     (Claude 3.5 Sonnet)
-        |                  |                 |
-        +------------------+-----------------+
+        |             Accept Tier 1     Moderate or High Complexity?
+        |             (Save 95%)       /                            \
+        |                  |      Moderate (S_comp <= 0.65)    High (S_comp > 0.65)
+        |                  |             v                             v
+        |                  |       Tier 2 Mid-tier               Tier 3 Frontier
+        |                  |       (GPT-4o-mini, save 90%)       (Claude 3.5 Sonnet)
+        |                  |             |                             |
+        +------------------+-------------+-----------------------------+
                            |
                            v
-              Client Delivery + Async FinOps
+              Client Delivery + Async FinOps Ledger
 ```
 
 ## Quick start
@@ -70,8 +84,7 @@ make build
 ./bin/cascadepilot serve --config examples/cascadepilot.yaml
 ```
 
-The gateway listens on `http://localhost:8088`.
-Open your browser at `http://localhost:8088` to access the FinOps Studio.
+Open `http://localhost:8088` to access the FinOps Cockpit.
 
 ### 2. Run with Docker
 
@@ -84,17 +97,18 @@ docker run -p 8088:8088 -v $(pwd)/data:/app/data cascadepilot
 
 Point existing OpenAI SDK or Anthropic SDK clients to `http://localhost:8088`:
 
-### Python (OpenAI SDK)
+### Python (OpenAI SDK with Department Attribution)
 
 ```python
 from openai import OpenAI
 
+# Connect using a department virtual key for chargeback
 client = OpenAI(
     base_url="http://localhost:8088/v1",
-    api_key="not-needed-if-using-mock",
+    api_key="cp-live-eng-9f821a", # Core Engineering virtual key
 )
 
-# Standard non-streaming completion
+# Standard completion
 response = client.chat.completions.create(
     model="cascadepilot-auto",
     messages=[
@@ -123,7 +137,7 @@ import OpenAI from "openai";
 
 const openai = new OpenAI({
   baseURL: "http://localhost:8088/v1",
-  apiKey: "not-needed",
+  apiKey: "cp-live-sup-3b714c", // Customer Support virtual key
 });
 
 const completion = await openai.chat.completions.create({
@@ -153,13 +167,13 @@ Empirical measurements on an AMD Ryzen 7 / Apple M-series host:
 
 | Component | Target Latency | Measured Latency | Status |
 | :--- | :--- | :--- | :--- |
-| Inbound Complexity Scorer | &lt; 2,000 µs | 58.89 µs | PASS |
-| Refusal and Hedging Heuristic | &lt; 1,000 µs | 21.32 µs | PASS |
-| JSON Schema Validator | &lt; 1,000 µs | 1.72 µs | PASS |
+| Inbound Complexity Scorer | &lt; 2,000 µs | 65.50 µs | PASS |
+| Refusal and Hedging Heuristic | &lt; 1,000 µs | 18.01 µs | PASS |
+| JSON Schema Validator | &lt; 1,000 µs | 2.80 µs | PASS |
 | LogProb Confidence Evaluator | &lt; 500 µs | 0.01 µs | PASS |
-| Total Proxy Overhead | &lt; 5.0 ms | **0.082 ms** | **PASS** |
+| Total Proxy Overhead | &lt; 5.0 ms | **0.086 ms** | **PASS** |
 
-Resident set size (RSS) memory under steady state: 16.8 MB (target &lt; 20 MB).
+Memory resident set size (RSS) under steady state: 17.4 MB (target &lt; 20 MB).
 
 ## Configuration reference
 
@@ -174,11 +188,12 @@ thresholds:
   theta_bypass: 0.75          # Prompts with S_comp > 0.75 bypass Tier 1 directly
   tau_confidence: 0.70        # Tier 1 outputs with Q_conf < 0.70 escalate to Tier 2
   stream_buffer_tokens: 16    # Speculative token buffer window for streaming requests
+  auto_tune_enabled: true
 
 tiers:
   tier1:
     model: "gemini-1.5-flash"
-    provider: "mock"          # "google", "openai", "ollama", or "mock"
+    provider: "mock"
     endpoint: "https://generativelanguage.googleapis.com/v1beta/openai"
     api_key_env: "GEMINI_API_KEY"
     cost_per_million_input: 0.075
@@ -186,13 +201,32 @@ tiers:
     timeout_ms: 8000
 
   tier2:
+    model: "gpt-4o-mini"
+    provider: "mock"
+    endpoint: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+    cost_per_million_input: 0.150
+    cost_per_million_output: 0.60
+    timeout_ms: 15000
+
+  tier3:
     model: "claude-3-5-sonnet"
-    provider: "mock"          # "anthropic", "openai", or "mock"
+    provider: "mock"
     endpoint: "https://api.anthropic.com/v1"
     api_key_env: "ANTHROPIC_API_KEY"
     cost_per_million_input: 3.00
     cost_per_million_output: 15.00
     timeout_ms: 35000
+
+cache:
+  enabled: true
+  max_size: 5000
+  ttl_minutes: 1440
+
+budget:
+  daily_cap_usd: 100.0
+  monthly_cap_usd: 2500.0
+  circuit_breaker_action: "downgrade_to_tier1"
 
 storage:
   db_path: "data/cascadepilot.db"
@@ -211,9 +245,14 @@ simulation:
 - `GET /metrics`: Prometheus formatted metrics.
 - `GET /api/events`: Server-Sent Events stream for real-time telemetry.
 - `GET /api/summary`: Aggregated FinOps totals and percentage savings.
-- `GET /api/waterfall`: Query routing distribution counts.
+- `GET /api/waterfall`: Query routing distribution counts across all 4 stages.
 - `GET /api/latency`: Latency distribution across tiers.
-- `GET /api/requests`: Recent request ledger records.
+- `GET /api/requests`: Recent request ledger records with tenant attribution.
+- `GET /api/tenants`: List departments with spend vs monthly budget.
+- `POST /api/tenants`: Create a new department virtual API key.
+- `POST /api/compare`: Execute parallel benchmark across all tiers.
+- `GET /api/cache`: Cache statistics and hit ratios.
+- `POST /api/cache`: Clear Tier 0 cache.
 - `GET /api/thresholds`: Current dynamic thresholds.
 - `POST /api/thresholds`: Update thresholds dynamically without restarting.
 - `GET /api/export/csv`: Export all transaction records as CSV.

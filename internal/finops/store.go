@@ -17,7 +17,7 @@ type RequestRecord struct {
 	Timestamp        time.Time `json:"timestamp"`
 	PromptPreview    string    `json:"prompt_preview"`
 	ComplexityScore  float64   `json:"complexity_score"`
-	RoutedTier       string    `json:"routed_tier"` // "tier1", "tier2_direct", "tier2_escalated"
+	RoutedTier       string    `json:"routed_tier"` // "tier0_cache", "tier1", "tier2_mid", "tier3_direct", "tier3_escalated"
 	Tier1Model       string    `json:"tier1_model"`
 	Tier2Model       string    `json:"tier2_model"`
 	Tier1Confidence  float64   `json:"tier1_confidence"`
@@ -30,6 +30,30 @@ type RequestRecord struct {
 	ActualCostUSD    float64   `json:"actual_cost_usd"`
 	SavedCostUSD     float64   `json:"saved_cost_usd"`
 	Stream           bool      `json:"stream"`
+	TenantID         string    `json:"tenant_id"`
+	Department       string    `json:"department"`
+	CacheHit         bool      `json:"cache_hit"`
+}
+
+// TenantRecord represents a multi-tenant client organization or department.
+type TenantRecord struct {
+	ID               string    `json:"id"`
+	Name             string    `json:"name"`
+	Department       string    `json:"department"`
+	APIKey           string    `json:"api_key"`
+	MonthlyBudgetUSD float64   `json:"monthly_budget_usd"`
+	CreatedAt        time.Time `json:"created_at"`
+	Active           bool      `json:"active"`
+}
+
+// TenantSummary contains department-level FinOps chargeback metrics.
+type TenantSummary struct {
+	TenantRecord
+	TotalRequests      int64   `json:"total_requests"`
+	TotalTokens        int64   `json:"total_tokens"`
+	TotalActualCostUSD float64 `json:"total_actual_cost_usd"`
+	TotalSavedCostUSD  float64 `json:"total_saved_cost_usd"`
+	BudgetUtilization  float64 `json:"budget_utilization_pct"`
 }
 
 // Store manages SQLite persistence for FinOps transactions.
@@ -85,7 +109,10 @@ func (s *Store) initSchema() error {
 		baseline_cost_usd REAL,
 		actual_cost_usd REAL,
 		saved_cost_usd REAL,
-		stream INTEGER
+		stream INTEGER,
+		tenant_id TEXT DEFAULT 'tenant_default',
+		department TEXT DEFAULT 'General',
+		cache_hit INTEGER DEFAULT 0
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_requests_timestamp ON requests(timestamp);
@@ -97,10 +124,46 @@ func (s *Store) initSchema() error {
 		tau_confidence REAL NOT NULL,
 		updated_at DATETIME NOT NULL
 	);
+
+	CREATE TABLE IF NOT EXISTS tenants (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		department TEXT NOT NULL,
+		api_key TEXT UNIQUE NOT NULL,
+		monthly_budget_usd REAL NOT NULL,
+		created_at DATETIME NOT NULL,
+		active INTEGER NOT NULL
+	);
 	`
 
-	_, err := s.db.Exec(query)
-	return err
+	if _, err := s.db.Exec(query); err != nil {
+		return err
+	}
+
+	// Schema migrations for backward compatibility with existing databases
+	_, _ = s.db.Exec("ALTER TABLE requests ADD COLUMN tenant_id TEXT DEFAULT 'tenant_default'")
+	_, _ = s.db.Exec("ALTER TABLE requests ADD COLUMN department TEXT DEFAULT 'General'")
+	_, _ = s.db.Exec("ALTER TABLE requests ADD COLUMN cache_hit INTEGER DEFAULT 0")
+
+	// Create index on department after column is guaranteed to exist
+	_, _ = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_requests_department ON requests(department)")
+
+	// Seed default tenants if empty
+	var count int
+	_ = s.db.QueryRow("SELECT COUNT(*) FROM tenants").Scan(&count)
+	if count == 0 {
+		nowStr := time.Now().Format(time.RFC3339Nano)
+		seedQuery := `
+		INSERT INTO tenants (id, name, department, api_key, monthly_budget_usd, created_at, active) VALUES
+		('tenant_eng', 'Core Engineering', 'Engineering', 'cp-live-eng-9f821a', 1500.0, ?, 1),
+		('tenant_support', 'Customer Care & Helpdesk', 'Customer Support', 'cp-live-sup-3b714c', 500.0, ?, 1),
+		('tenant_mkt', 'Growth & Marketing Ops', 'Marketing', 'cp-live-mkt-5c920e', 300.0, ?, 1),
+		('tenant_default', 'General Enterprise Workloads', 'General', 'cp-live-gen-default', 1000.0, ?, 1);
+		`
+		_, _ = s.db.Exec(seedQuery, nowStr, nowStr, nowStr, nowStr)
+	}
+
+	return nil
 }
 
 // Close closes the underlying database handle.

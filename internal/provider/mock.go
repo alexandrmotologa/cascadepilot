@@ -51,10 +51,13 @@ func (m *MockProvider) Complete(ctx context.Context, req *ChatCompletionRequest,
 	}
 
 	modelName := req.Model
-	if modelName == "" {
-		if tierName == "tier1" {
+	if modelName == "" || modelName == "cascadepilot-auto" {
+		switch tierName {
+		case "tier1":
 			modelName = "gemini-1.5-flash"
-		} else {
+		case "tier2":
+			modelName = "gpt-4o-mini"
+		default:
 			modelName = "claude-3-5-sonnet"
 		}
 	}
@@ -95,10 +98,13 @@ func (m *MockProvider) CompleteStream(ctx context.Context, req *ChatCompletionRe
 	content, avgLogprob, finishReason := generateMockContent(promptText, tierName, complexityScore)
 
 	modelName := req.Model
-	if modelName == "" {
-		if tierName == "tier1" {
+	if modelName == "" || modelName == "cascadepilot-auto" {
+		switch tierName {
+		case "tier1":
 			modelName = "gemini-1.5-flash"
-		} else {
+		case "tier2":
+			modelName = "gpt-4o-mini"
+		default:
 			modelName = "claude-3-5-sonnet"
 		}
 	}

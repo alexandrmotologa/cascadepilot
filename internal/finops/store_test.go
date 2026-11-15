@@ -89,8 +89,8 @@ func TestStore_RecordAndSummary(t *testing.T) {
 	if sum.Tier1Accepted != 1 {
 		t.Errorf("expected 1 tier1 accepted, got %d", sum.Tier1Accepted)
 	}
-	if sum.Tier2Escalated != 1 {
-		t.Errorf("expected 1 tier2 escalated, got %d", sum.Tier2Escalated)
+	if sum.Tier3Escalated != 1 {
+		t.Errorf("expected 1 tier3 escalated, got %d", sum.Tier3Escalated)
 	}
 	if sum.Tier1SuccessRate != 50.0 {
 		t.Errorf("expected 50%% success rate, got %.1f", sum.Tier1SuccessRate)
@@ -115,5 +115,33 @@ func TestStore_RecordAndSummary(t *testing.T) {
 	}
 	if buf.Len() == 0 {
 		t.Errorf("expected non-empty csv output")
+	}
+
+	// Check tenants listing and creation
+	tenants, err := store.ListTenantsWithSpend()
+	if err != nil {
+		t.Fatalf("failed to list tenants: %v", err)
+	}
+	if len(tenants) == 0 {
+		t.Errorf("expected seeded tenants, got 0")
+	}
+
+	customTenant := &TenantRecord{
+		ID:               "tenant_test_ai",
+		Name:             "AI Research Group",
+		Department:       "Data Science",
+		APIKey:           "cp-live-ds-alpha1",
+		MonthlyBudgetUSD: 2000.0,
+	}
+	if err := store.CreateTenant(customTenant); err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
+
+	retrieved, found, err := store.GetTenantByKey("cp-live-ds-alpha1")
+	if err != nil || !found {
+		t.Fatalf("failed to find tenant by key: %v", err)
+	}
+	if retrieved.Name != "AI Research Group" {
+		t.Errorf("expected tenant name 'AI Research Group', got '%s'", retrieved.Name)
 	}
 }

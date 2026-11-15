@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/alexandrmotologa/cascadepilot/internal/cache"
 	"github.com/alexandrmotologa/cascadepilot/internal/config"
 	"github.com/alexandrmotologa/cascadepilot/internal/finops"
 	"github.com/alexandrmotologa/cascadepilot/internal/provider"
@@ -102,16 +103,18 @@ func runServe(args []string) {
 	}
 	defer store.Close()
 
+	promptCache := cache.NewPromptCache(cfg.Cache.MaxSize, time.Duration(cfg.Cache.TTLMinutes)*time.Minute)
+
 	sseHub := server.NewSSEHub()
 	broadcaster := func(event string, data interface{}) {
 		sseHub.Broadcast(event, data)
 	}
 
 	client := provider.NewUnifiedClient(cfg.Simulation)
-	engine := router.NewEngine(cfg, client, store, broadcaster)
+	engine := router.NewEngine(cfg, client, store, promptCache, broadcaster)
 
-	proxyHandler := server.NewProxyHandler(cfg, engine)
-	apiHandler := server.NewAPIHandler(store, engine)
+	proxyHandler := server.NewProxyHandler(cfg, engine, store)
+	apiHandler := server.NewAPIHandler(store, engine, promptCache)
 	uiHandler := server.FileServerHandler()
 
 	mux := http.NewServeMux()
@@ -129,6 +132,9 @@ func runServe(args []string) {
 	mux.HandleFunc("/api/waterfall", apiHandler.HandleWaterfall)
 	mux.HandleFunc("/api/latency", apiHandler.HandleLatency)
 	mux.HandleFunc("/api/requests", apiHandler.HandleRequests)
+	mux.HandleFunc("/api/tenants", apiHandler.HandleTenants)
+	mux.HandleFunc("/api/compare", apiHandler.HandleCompare)
+	mux.HandleFunc("/api/cache", apiHandler.HandleCache)
 	mux.HandleFunc("/api/thresholds", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			apiHandler.HandleSetThresholds(w, r)
@@ -313,7 +319,7 @@ func runSimulate(args []string) {
 	fmt.Printf(" Concurrent workers: %d\n\n", *workersFlag)
 
 	client := provider.NewUnifiedClient(cfg.Simulation)
-	engine := router.NewEngine(cfg, client, nil, nil)
+	engine := router.NewEngine(cfg, client, nil, nil, nil)
 
 	type SimResult struct {
 		Item       BenchmarkItem

@@ -1,58 +1,58 @@
 # cascadepilot System Architecture
 
-This document describes the internal architecture of cascadepilot, an adaptive speculative reverse proxy designed for enterprise language model workloads.
+This document describes the architectural design of cascadepilot, an adaptive speculative reverse proxy designed for enterprise language model workloads.
 
 ## Core Concepts
 
-In enterprise environments, standard LLM applications invoke frontier models for all prompts. cascadepilot sits as a drop-in HTTP reverse proxy between client applications (OpenAI SDK, LangChain, LlamaIndex, custom agents) and upstream model providers.
+In enterprise environments, standard LLM applications invoke expensive frontier models for all prompts. cascadepilot operates as an inline HTTP reverse proxy between client applications (OpenAI SDK, LangChain, LlamaIndex, custom agents) and upstream model providers.
 
-The proxy routes requests through a two-tier speculative pipeline:
-1. Inbound Complexity Scoring: Inspects the raw prompt for length, reasoning tokens, and syntactic constraints.
-2. Speculative Dispatch: Sends suitable prompts to a low-cost Tier 1 model.
-3. In-Flight Verification: Evaluates Tier 1 output confidence using log-probabilities, semantic heuristics, and schema validity.
-4. Transparent Escalation: If Tier 1 confidence falls below the acceptance threshold, the proxy discards the draft and queries Tier 2 directly before responding to the client.
+The gateway routes requests through a four-stage optimization pipeline:
+1. Tier 0 Prompt Caching: Normalized SHA-256 cache evaluation returning instant completions at zero cost ($0.00) in under 1 millisecond.
+2. Inbound Complexity Scoring: Evaluates prompt length, reasoning indicators, and syntactic constraints in under 0.1 milliseconds.
+3. Speculative Multi-Tier Execution: Dispatches queries to Tier 1 (SLM). If uncertain, cascades to Tier 2 (Mid-tier reasoning) or Tier 3 (Frontier flagship).
+4. In-Flight Verification: Evaluates output confidence using token log-probabilities, semantic heuristics, and schema validity before socket delivery.
+5. Department Chargeback and FinOps: Maps usage to virtual API keys (`cp-live-...`), tracking spend against team budgets.
 
 ## Component Breakdown
 
-### 1. Inbound Request Complexity Scorer (`internal/router/complexity.go`)
-Before calling any model, cascadepilot scores prompt complexity. The scorer operates in under 2 milliseconds without network roundtrips.
+### 1. Tier 0 Normalized Prompt Cache (`internal/cache/cache.go`)
+Before calling any model, the gateway hashes incoming messages and parameters (temperature, response format) using SHA-256. If a matching entry exists within the TTL window, the cached completion is returned immediately:
+- Cost: $0.00
+- Latency: < 1.0 ms
+- Routing tier tagged: `tier0_cache`
 
-Features evaluated:
-- Token length: Normalizes token counts against an empirical upper bound of 2048 tokens.
-- Constraint density: Detects JSON schemas, XML wrappers, markdown specifications, regex targets, and negative constraints ("never", "do not").
-- Reasoning indicators: Detects chain of thought requests, algorithmic problems, mathematical formulations, and multi-step deduction requests.
+### 2. Inbound Complexity Scorer (`internal/router/complexity.go`)
+When a cache miss occurs, the scorer evaluates prompt complexity S_comp without external network roundtrips:
+- Token length ratio: Normalized against an empirical ceiling of 2048 tokens.
+- Constraint density: Detects JSON schemas, XML wrappers, markdown specifications, and negative constraints.
+- Reasoning intensity: Matches keywords associated with mathematical proofs, distributed systems, concurrency, formal analysis, and multi-step deduction.
 
-If the prompt complexity exceeds the bypass threshold (theta_bypass), the query skips Tier 1 entirely, avoiding unnecessary speculative latency.
+If S_comp exceeds the bypass threshold (theta_bypass), the query skips smaller tiers and routes directly to Tier 3 Frontier.
 
-### 2. Provider Layer (`internal/provider/`)
-The provider layer translates generic OpenAI-compatible chat completion requests to upstream provider protocols:
-- OpenAI: Direct pass-through to `/v1/chat/completions`.
-- Anthropic: Translates between OpenAI format and Anthropic `/v1/messages` format.
-- Google Gemini: OpenAI-compatible endpoints or native REST format.
-- Ollama / Local Models: Local inference endpoints for on-premise SLMs.
-- Mock Engine: Deterministic simulation provider for testing, synthetic benchmarks, and demonstrations without API keys.
+### 3. Progressive 3-Tier Cascade (`internal/router/engine.go`)
+- Tier 1 (SLM): Rapid small language models (Gemini Flash, Llama 8B) handling 70% to 80% of routine enterprise traffic at $0.075 to $0.15 per 1M tokens.
+- Tier 2 (Mid-tier Reasoning): Capable models (GPT-4o-mini, Claude 3.5 Haiku) resolving moderate reasoning tasks at $0.15 to $0.60 per 1M tokens.
+- Tier 3 (Frontier Flagship): Deep frontier models (Claude 3.5 Sonnet, GPT-4o, o1) reserved for intricate edge cases at $3.00 to $15.00 per 1M tokens.
 
-### 3. Verification Engine (`internal/verifier/`)
-Once Tier 1 returns a response, the verification engine checks response validity before delivering it to the client:
-- Confidence Scorer (`confidence.go`): Analyzes token log-probabilities when provided by the upstream engine.
-- Heuristic Gate (`heuristic.go`): Detects standard refusal phrases, evasions, repetitive token loops, and unexpected truncated outputs.
-- Schema Validator (`schema_gate.go`): Parses JSON schema responses to ensure valid syntax and complete keys when structured outputs are requested.
+When Tier 1 confidence fails to clear tau:
+- If prompt complexity is moderate (S_comp <= 0.65): Escalates to Tier 2 Mid-tier, saving 90% compared to pure frontier routing.
+- If prompt complexity is high (S_comp > 0.65): Escalates directly to Tier 3 Frontier.
 
-If the calculated score Q_conf is greater than or equal to tau, the response is accepted. Otherwise, the proxy initiates escalation.
+### 4. Verification Engine (`internal/verifier/`)
+Evaluates generated drafts before delivery:
+- Confidence Scorer (`confidence.go`): Computes average linear probability from token log-probabilities.
+- Heuristic Gate (`heuristic.go`): Detects evasion, refusal phrases, apologies, and repetitive loops.
+- Schema Validator (`schema_gate.go`): Validates JSON syntax and schema completeness.
 
-### 4. Speculative Streaming Forwarder (`internal/provider/sse_forwarder.go`)
-For streaming requests (`stream: true`), the proxy uses a speculative buffer. The first K tokens are held in a small ring buffer to evaluate early confidence and formatting signals. Once confidence is verified, the buffer flushes to the client and remaining chunks stream through with minimal Time to First Token (TTFT).
-
-If an early refusal or low-confidence signal triggers escalation during buffering, the stream cleanly pivots to Tier 2 without delivering erroneous tokens to the client.
-
-### 5. FinOps Ledger and Storage (`internal/finops/`)
-All routing decisions, token counts, model latencies, and dollar savings are written asynchronously to an embedded SQLite database using `modernc.org/sqlite` (pure Go, zero CGO).
-
-The ledger computes:
-- Cumulative expenditure under static Tier 2 routing.
-- Realized expenditure under cascadepilot speculative routing.
-- Net savings in USD and percentage reduction.
-- Quality parity metric based on acceptance rate and Tier 2 escalations.
+### 5. Multi-Tenant Cost Allocation (`internal/finops/`)
+The proxy supports virtual API keys formatted as `Bearer cp-live-<dept>-<hash>`:
+- Maps requests to organizational departments (Engineering, Customer Support, Marketing, Data Science).
+- Monitors monthly expenditures against allocated department budget caps.
+- Triggers circuit breaker protection if total spend approaches configured thresholds.
 
 ### 6. Embedded FinOps Cockpit (`web/` and `internal/server/embed.go`)
-The React 19 dashboard is compiled and embedded into the Go binary at build time. Users can access the studio by opening `http://localhost:8088` in any browser. The dashboard receives live events via Server-Sent Events (SSE) and exposes controls to adjust thresholds in real time.
+A single Go binary embeds the React 19 dashboard, exposing:
+- Overview: Live SSE telemetry, waterfall progression, latency histograms, and hyperparameter sliders.
+- Department Chargeback: Real-time spending versus budget bars and virtual key provisioning.
+- Executive ROI Calculator: Interactive models projecting annual dollar savings and quality parity retention.
+- Side-by-Side Comparator: Parallel execution comparing Tier 1, Mid-tier, Frontier, and Cascadepilot on identical prompts.

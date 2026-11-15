@@ -1,0 +1,44 @@
+# Binaries
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+cascadepilot
+
+# Go artifacts
+*.test
+*.out
+go.work
+go.work.sum
+
+# Frontend dependencies and build
+web/node_modules/
+web/dist/
+web/.vite/
+node_modules/
+
+# Local databases and runtime data
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+data/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# IDE and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
